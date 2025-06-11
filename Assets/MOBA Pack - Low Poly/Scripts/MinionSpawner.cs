@@ -1,232 +1,294 @@
 using UnityEngine;
-using System.Collections.Generic;
-
-[System.Serializable]
-public class Lane
-{
-    public string laneName = "Mid Lane";
-    public Transform[] teamAWaypoints; // Team A'nın gideceği waypoint'ler
-    public Transform[] teamBWaypoints; // Team B'nin gideceği waypoint'ler
-    public Transform teamASpawnPoint;
-    public Transform teamBSpawnPoint;
-    public int maxMinionsPerTeam = 3;
-    
-    [HideInInspector]
-    public int currentTeamAMinions = 0;
-    [HideInInspector]
-    public int currentTeamBMinions = 0;
-}
+using System.Collections;
 
 public class MinionSpawner : MonoBehaviour
 {
-    [Header("Prefabs")]
-    public GameObject teamAPrefab;
-    public GameObject teamBPrefab;
+    [Header("Minyon Prefabları")]
+    public GameObject teamAMinionPrefab; 
+    public GameObject teamBMinionPrefab; 
     
-    [Header("Lanes")]
-    public Lane[] lanes = new Lane[3]; // Top, Mid, Bot
+    [Header("Spawn Noktaları")]
+    public Transform teamASpawnPoint;  
+    public Transform teamBSpawnPoint;  
     
-    [Header("Spawn Settings")]
-    public float spawnInterval = 20f;
-    public bool autoSpawn = true;
-    public bool spawnOnStart = true;
+    [Header("Waypoint'ler (Lane Yolu)")]
+    public Transform[] teamAWaypoints; 
+    public Transform[] teamBWaypoints; 
     
-    [Header("Wave Settings")]
-    public int minionsPerWave = 3;
-    public float minionSpawnDelay = 1f; // Dalga içinde minyonlar arası süre
+    [Header("Spawn Ayarları")]
+    public float spawnInterval = 20f;  
+    public int minionsPerWave = 3;    
+    public float minionSpawnDelay = 1f;  
+    public bool autoSpawn = true; 
     
-    private float timer;
-    private List<GameObject> allMinions = new List<GameObject>();
+    [Header("Debug")]
+    public bool showDebugInfo = true;
+    
+    private float spawnTimer;
+    private int activeMinionsTeamA = 0;
+    private int activeMinionsTeamB = 0;
     
     void Start()
     {
-        timer = spawnInterval;
-        
-        // Başlangıçta spawn et
-        if (spawnOnStart)
+        spawnTimer = spawnInterval;
+
+        if (autoSpawn)
         {
-            SpawnWaveInAllLanes();
+            SpawnWave();
         }
         
-        // Lane'lerin doğru kurulup kurulmadığını kontrol et
-        ValidateLanes();
+        ValidateSetup();
     }
     
     void Update()
     {
         if (!autoSpawn) return;
         
-        timer -= Time.deltaTime;
-        if (timer <= 0f)
+        spawnTimer -= Time.deltaTime;
+        
+        if (spawnTimer <= 0f)
         {
-            SpawnWaveInAllLanes();
-            timer = spawnInterval;
+            SpawnWave();
+            spawnTimer = spawnInterval;
         }
     }
     
-    void ValidateLanes()
+    void ValidateSetup()
     {
-        for (int i = 0; i < lanes.Length; i++)
+        bool hasError = false;
+        
+        if (teamAMinionPrefab == null)
         {
-            Lane lane = lanes[i];
-            
-            if (lane.teamAWaypoints == null || lane.teamAWaypoints.Length == 0)
-            {
-                Debug.LogWarning($"Lane {i} ({lane.laneName}) has no Team A waypoints!");
-            }
-            
-            if (lane.teamBWaypoints == null || lane.teamBWaypoints.Length == 0)
-            {
-                Debug.LogWarning($"Lane {i} ({lane.laneName}) has no Team B waypoints!");
-            }
-            
-            if (lane.teamASpawnPoint == null)
-            {
-                Debug.LogWarning($"Lane {i} ({lane.laneName}) has no Team A spawn point!");
-            }
-            
-            if (lane.teamBSpawnPoint == null)
-            {
-                Debug.LogWarning($"Lane {i} ({lane.laneName}) has no Team B spawn point!");
-            }
+            Debug.LogError("Team A Minion Prefab atanmamış!");
+            hasError = true;
+        }
+        
+        if (teamBMinionPrefab == null)
+        {
+            Debug.LogError("Team B Minion Prefab atanmamış!");
+            hasError = true;
+        }
+        
+        if (teamASpawnPoint == null)
+        {
+            Debug.LogError("Team A Spawn Point atanmamış!");
+            hasError = true;
+        }
+        
+        if (teamBSpawnPoint == null)
+        {
+            Debug.LogError("Team B Spawn Point atanmamış!");
+            hasError = true;
+        }
+        
+        if (teamAWaypoints == null || teamAWaypoints.Length == 0)
+        {
+            Debug.LogError("Team A Waypoints boş!");
+            hasError = true;
+        }
+        
+        if (teamBWaypoints == null || teamBWaypoints.Length == 0)
+        {
+            Debug.LogError("Team B Waypoints boş!");
+            hasError = true;
+        }
+        
+        if (!hasError)
+        {
+            Debug.Log("Minyon spawner kurulumu başarılı!");
         }
     }
     
-    public void SpawnWaveInAllLanes()
+    public void SpawnWave()
     {
-        foreach (Lane lane in lanes)
-        {
-            StartCoroutine(SpawnWaveInLane(lane));
-        }
+        StartCoroutine(SpawnWaveCoroutine());
     }
     
-    System.Collections.IEnumerator SpawnWaveInLane(Lane lane)
+    IEnumerator SpawnWaveCoroutine()
     {
-        // Team A minyonları spawn et
+        Debug.Log("Yeni minyon dalgası spawn ediliyor.");
+        
         for (int i = 0; i < minionsPerWave; i++)
         {
-            if (lane.currentTeamAMinions < lane.maxMinionsPerTeam)
-            {
-                SpawnMinion(teamAPrefab, lane, MinionController.TeamType.TeamA);
-                yield return new WaitForSeconds(minionSpawnDelay);
-            }
+            SpawnMinion(teamAMinionPrefab, teamASpawnPoint, teamAWaypoints, "TeamA");
+            yield return new WaitForSeconds(minionSpawnDelay);
         }
         
-        // Team B minyonları spawn et
         for (int i = 0; i < minionsPerWave; i++)
         {
-            if (lane.currentTeamBMinions < lane.maxMinionsPerTeam)
-            {
-                SpawnMinion(teamBPrefab, lane, MinionController.TeamType.TeamB);
-                yield return new WaitForSeconds(minionSpawnDelay);
-            }
+            SpawnMinion(teamBMinionPrefab, teamBSpawnPoint, teamBWaypoints, "TeamB");
+            yield return new WaitForSeconds(minionSpawnDelay);
         }
     }
     
-    void SpawnMinion(GameObject prefab, Lane lane, MinionController.TeamType team)
+    void SpawnMinion(GameObject prefab, Transform spawnPoint, Transform[] waypoints, string team)
     {
-        if (prefab == null) return;
-        
-        Transform spawnPoint = (team == MinionController.TeamType.TeamA) ? 
-            lane.teamASpawnPoint : lane.teamBSpawnPoint;
-            
-        Transform[] waypoints = (team == MinionController.TeamType.TeamA) ? 
-            lane.teamAWaypoints : lane.teamBWaypoints;
-        
-        if (spawnPoint == null || waypoints == null || waypoints.Length == 0)
+        if (prefab == null || spawnPoint == null || waypoints == null || waypoints.Length == 0)
         {
-            Debug.LogWarning($"Cannot spawn minion for {team} in lane {lane.laneName} - missing spawn point or waypoints");
+            Debug.LogWarning($"Minyon spawn edilemedi - eksik referans ({team})");
             return;
         }
-        
-        // Minyon spawn et
+    
         GameObject minion = Instantiate(prefab, spawnPoint.position, spawnPoint.rotation);
-        allMinions.Add(minion);
         
-        // MinionController'ı ayarla
         MinionController controller = minion.GetComponent<MinionController>();
         if (controller != null)
         {
-            controller.team = team;
+            if (team == "TeamA")
+            {
+                controller.team = MinionController.TeamType.TeamA;
+                activeMinionsTeamA++;
+            }
+            else
+            {
+                controller.team = MinionController.TeamType.TeamB;
+                activeMinionsTeamB++;
+            }
+            
             controller.waypoints = waypoints;
             
-            // Ölüm event'ini dinle
-            controller.OnMinionDeath += () => OnMinionDeath(minion, lane, team);
-            
-            // Takım layer'ını ayarla
-            int teamLayer = (team == MinionController.TeamType.TeamA) ? 
-                LayerMask.NameToLayer("TeamA") : LayerMask.NameToLayer("TeamB");
-            
-            if (teamLayer != -1)
+            controller.OnMinionDeath += () => OnMinionDied(team);
+        }
+        
+        if (team == "TeamA")
+        {
+            int teamALayer = LayerMask.NameToLayer("TeamA");
+            if (teamALayer != -1) minion.layer = teamALayer;
+        }
+        else
+        {
+            int teamBLayer = LayerMask.NameToLayer("TeamB");
+            if (teamBLayer != -1) minion.layer = teamBLayer;
+        }
+        
+        Debug.Log($"{team} minyonu spawn edildi!");
+    }
+    
+    void OnMinionDied(string team)
+    {
+        if (team == "TeamA")
+        {
+            activeMinionsTeamA--;
+        }
+        else
+        {
+            activeMinionsTeamB--;
+        }
+        
+        Debug.Log($"{team} minyonu öldü. Aktif minyonlar: A={activeMinionsTeamA}, B={activeMinionsTeamB}");
+    }
+    
+    [ContextMenu("Test Spawn Wave")]
+    public void TestSpawnWave()
+    {
+        SpawnWave();
+    }
+    
+    [ContextMenu("Spawn Team A Only")]
+    public void SpawnTeamAOnly()
+    {
+        StartCoroutine(SpawnTeamOnly("TeamA"));
+    }
+    
+    [ContextMenu("Spawn Team B Only")]
+    public void SpawnTeamBOnly()
+    {
+        StartCoroutine(SpawnTeamOnly("TeamB"));
+    }
+    
+    IEnumerator SpawnTeamOnly(string team)
+    {
+        for (int i = 0; i < minionsPerWave; i++)
+        {
+            if (team == "TeamA")
             {
-                minion.layer = teamLayer;
+                SpawnMinion(teamAMinionPrefab, teamASpawnPoint, teamAWaypoints, "TeamA");
             }
-        }
-        
-        // Sayacı artır
-        if (team == MinionController.TeamType.TeamA)
-        {
-            lane.currentTeamAMinions++;
-        }
-        else
-        {
-            lane.currentTeamBMinions++;
-        }
-        
-        Debug.Log($"Spawned {team} minion in {lane.laneName}");
-    }
-    
-    void OnMinionDeath(GameObject minion, Lane lane, MinionController.TeamType team)
-    {
-        // Listeden çıkar
-        allMinions.Remove(minion);
-        
-        // Sayacı azalt
-        if (team == MinionController.TeamType.TeamA)
-        {
-            lane.currentTeamAMinions--;
-        }
-        else
-        {
-            lane.currentTeamBMinions--;
-        }
-        
-        Debug.Log($"{team} minion died in {lane.laneName}");
-    }
-    
-    // Manuel spawn fonksiyonları
-    public void SpawnWaveInLane(int laneIndex)
-    {
-        if (laneIndex >= 0 && laneIndex < lanes.Length)
-        {
-            StartCoroutine(SpawnWaveInLane(lanes[laneIndex]));
+            else
+            {
+                SpawnMinion(teamBMinionPrefab, teamBSpawnPoint, teamBWaypoints, "TeamB");
+            }
+            yield return new WaitForSeconds(minionSpawnDelay);
         }
     }
     
-    public void ForceSpawnAll()
-    {
-        SpawnWaveInAllLanes();
-    }
-    
-    // Debug bilgileri
     void OnGUI()
     {
-        if (!Application.isPlaying) return;
+        if (!showDebugInfo || !Application.isPlaying) return;
         
-        GUILayout.BeginArea(new Rect(10, 10, 300, 200));
-        GUILayout.Label("Minion Spawner Debug");
-        GUILayout.Label($"Active Minions: {allMinions.Count}");
+        GUILayout.BeginArea(new Rect(10, 10, 300, 150));
+        GUILayout.Box("Minyon Spawner Debug");
         
-        foreach (Lane lane in lanes)
+        GUILayout.Label($"Sonraki dalga: {spawnTimer:F1} saniye");
+        GUILayout.Label($"Aktif Team A minyonları: {activeMinionsTeamA}");
+        GUILayout.Label($"Aktif Team B minyonları: {activeMinionsTeamB}");
+        
+        GUILayout.Space(10);
+        
+        if (GUILayout.Button("Manuel Dalga Spawn Et"))
         {
-            GUILayout.Label($"{lane.laneName}: A={lane.currentTeamAMinions}, B={lane.currentTeamBMinions}");
+            SpawnWave();
         }
         
-        if (GUILayout.Button("Force Spawn Wave"))
+        if (GUILayout.Button("Sadece Team A"))
         {
-            ForceSpawnAll();
+            SpawnTeamAOnly();
+        }
+        
+        if (GUILayout.Button("Sadece Team B"))
+        {
+            SpawnTeamBOnly();
         }
         
         GUILayout.EndArea();
-    }
+    }
+
+    void OnDrawGizmos()
+    {
+        if (teamAWaypoints != null && teamAWaypoints.Length > 0)
+        {
+            Gizmos.color = Color.blue;
+            for (int i = 0; i < teamAWaypoints.Length; i++)
+            {
+                if (teamAWaypoints[i] != null)
+                {
+                    Gizmos.DrawWireSphere(teamAWaypoints[i].position, 0.5f);
+                    
+                    if (i < teamAWaypoints.Length - 1 && teamAWaypoints[i + 1] != null)
+                    {
+                        Gizmos.DrawLine(teamAWaypoints[i].position, teamAWaypoints[i + 1].position);
+                    }
+                }
+            }
+        }
+        
+        if (teamBWaypoints != null && teamBWaypoints.Length > 0)
+        {
+            Gizmos.color = Color.red;
+            for (int i = 0; i < teamBWaypoints.Length; i++)
+            {
+                if (teamBWaypoints[i] != null)
+                {
+                    Gizmos.DrawWireSphere(teamBWaypoints[i].position, 0.5f);
+                    
+                    if (i < teamBWaypoints.Length - 1 && teamBWaypoints[i + 1] != null)
+                    {
+                        Gizmos.DrawLine(teamBWaypoints[i].position, teamBWaypoints[i + 1].position);
+                    }
+                }
+            }
+        }
+        
+        if (teamASpawnPoint != null)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireCube(teamASpawnPoint.position, Vector3.one);
+        }
+        
+        if (teamBSpawnPoint != null)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireCube(teamBSpawnPoint.position, Vector3.one);
+        }
+    }
 }
