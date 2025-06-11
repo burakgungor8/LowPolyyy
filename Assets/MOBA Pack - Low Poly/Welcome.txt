@@ -1,0 +1,12 @@
+Thank you for purchasing the Low Poly MOBA Pack!
+
+You can immediately start with creating your first environment. 
+Open the Prefabs folder, take a look at the variety of assets and start constructing your scene.
+A demoscene with a large map is also included.
+
+I recommend you to use the Post Processing Stack for better results, which is available for free on Unity.
+
+ 
+
+If you like the pack we would greatly appreciate a small review on the product page! :)
+I hope you'll have fun creating interesting and beautiful scenes!
