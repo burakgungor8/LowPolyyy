@@ -27,6 +27,7 @@ public class TowerAttack : MonoBehaviour
     void FindFirstTargetInRange()
     {
         Collider[] hits = Physics.OverlapSphere(transform.position, range, enemyLayer);
+        Debug.LogWarning($"Found {hits.Length} targets in range.");
         foreach (Collider hit in hits)
         {
             MinionHealth mh = hit.GetComponent<MinionHealth>();
