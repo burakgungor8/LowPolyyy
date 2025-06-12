@@ -190,6 +190,7 @@ public class MinionController : MonoBehaviour
     void CheckForEnemies()
     {
         Collider[] enemies = Physics.OverlapSphere(transform.position, detectionRange, enemyLayerMask);
+        Debug.LogWarning($"{name}: Düşman kontrolü yapılıyor, {enemies.Length} düşman bulundu.");
         Transform nearestEnemy = null;
         float nearestDistance = Mathf.Infinity;
         
